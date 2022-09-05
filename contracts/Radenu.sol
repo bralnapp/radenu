@@ -21,13 +21,14 @@ contract Radenu is AccessControl, ReentrancyGuard {
     IERC20 public transferToken;
     IERC20 public rewardsToken;
 
-    enum OrderState {INITIATED, ACCEPTED, COMPLETED, FUFILLED, CANCELLED}
+    enum OrderState {INITIATED, ACCEPTED, COMPLETED, FUFILLED, CANCELLED, INDISPUTE}
     
     
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant MOD_ROLE = keccak256("MOD_ROLE");
 
         /* ========== CONSTRUCTOR ========== */
 
@@ -142,7 +143,7 @@ contract Radenu is AccessControl, ReentrancyGuard {
                     transferToken.transfer(_openOrder[i].receiver, amount);
                     emit OrderFufilled(
                          _openOrder[i].sender, 
-                         msg.sender, 
+                         _openOrder[i].receiver, 
                          _openOrder[i].amount, 
                          block.timestamp
                          );
@@ -174,27 +175,29 @@ contract Radenu is AccessControl, ReentrancyGuard {
 
     }
 
-    function creditUser(address user) external nonReentrant {
+    function creditUser(address user, uint256 _orderId) external nonReentrant onlyRole(MOD_ROLE){
 
     }
 
     function openDispute(uint256 _orderId) external nonReentrant {
+        Order[] memory _openOrder = openOrder;
+        for (uint256 i=0; i < _openOrder.length; i++){
+                if(_openOrder[i].orderId == _orderId) {
+                    require(
+                        openOrder[i].receiver == msg.sender || 
+                        openOrder[i].sender == msg.sender, 
+                        "RADENU: FORBIDDEN"
+                        );
+                    openOrder[i].state = OrderState.INDISPUTE;
+                    emit OrderDisputed(
+                         _openOrder[i].sender, 
+                         _openOrder[i].receiver, 
+                         _openOrder[i].amount, 
+                         block.timestamp
+                         );
 
-    }
-
-     // ============ OWNER-ONLY ADMIN FUNCTIONS ============
-
-    function withdraw() public onlyRole(ADMIN_ROLE) {
-        uint256 balance = address(this).balance;
-        payable(msg.sender).transfer(balance);
-    }
-
-    function withdrawTokens(IERC20 token) 
-    public 
-    onlyRole(ADMIN_ROLE) 
-    {
-        uint256 balance = token.balanceOf(address(this));
-        token.transfer(msg.sender, balance);
+                }
+        }
     }
 
     // ============ SUPPORTING FUNCTIONS ============
@@ -206,6 +209,10 @@ contract Radenu is AccessControl, ReentrancyGuard {
 
     function orderTotal() external view returns (uint256) {
         return orderId.current();
+    }
+
+    function assignRole (address user) external onlyRole(ADMIN_ROLE){
+        _setupRole(MOD_ROLE, user);
     }
 
     function findAndProcessOrder(uint256 id) internal returns (Order memory){
@@ -225,6 +232,21 @@ contract Radenu is AccessControl, ReentrancyGuard {
         }
         revert('Not found');
     }
+
+       // ============ OWNER-ONLY ADMIN FUNCTIONS ============
+
+    function withdraw() public onlyRole(ADMIN_ROLE) {
+        uint256 balance = address(this).balance;
+        payable(msg.sender).transfer(balance);
+    }
+
+    function withdrawTokens(IERC20 token) 
+    public 
+    onlyRole(ADMIN_ROLE) 
+    {
+        uint256 balance = token.balanceOf(address(this));
+        token.transfer(msg.sender, balance);
+    }
     
     //EVENTS
     event OrderInitiated(address indexed sender, uint256 amount, uint256 when);
@@ -232,7 +254,8 @@ contract Radenu is AccessControl, ReentrancyGuard {
     event OrderCompleted(address indexed sender, address indexed reciever, uint256 amount, uint256 when);
     event OrderFufilled(address indexed sender, address indexed reciever, uint256 amount, uint256 when);
     event OrderCancelled(address indexed sender, uint256 amount, uint256 when);
-    event Withdrawn(address indexed sender, uint256 amount, uint256 when);
+    event OrderDisputed(address indexed sender, address indexed reciever, uint256 amount, uint256 when);
+    event UserCredited(address indexed sender, uint256 amount, uint256 when);
    
 
 }
