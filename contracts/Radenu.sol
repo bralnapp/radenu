@@ -57,7 +57,6 @@ contract Radenu is AccessControl, ReentrancyGuard {
 
     Order[] public openOrder;
     mapping (address => Order) public acceptedOrder;
-    mapping (address => Order) public orderCreated;
    
 
     function initOrder(
@@ -69,22 +68,23 @@ contract Radenu is AccessControl, ReentrancyGuard {
         uint128 _exchangeRate) internal 
         
         {
-        openOrder.push(
-            Order({
-                amount: _amount,
-                accountNumber: _accountNumber,
-                accountName: _accountName,
-                bankName: _bankName,
-                country: _country,
-                exchangeRate: _exchangeRate,
-                sender: payable(msg.sender),
-                receiver: payable(address(0)),
-                orderId: nextOrderId(),
-                duration: 0,
-                timeInitiated: block.timestamp,
-                state: OrderState.INITIATED
-            })
-        );
+            uint256 value = _amount - mintFee(_amount);
+            openOrder.push(
+                Order({
+                    amount: value,
+                    accountNumber: _accountNumber,
+                    accountName: _accountName,
+                    bankName: _bankName,
+                    country: _country,
+                    exchangeRate: _exchangeRate,
+                    sender: payable(msg.sender),
+                    receiver: payable(address(0)),
+                    orderId: nextOrderId(),
+                    duration: 0,
+                    timeInitiated: block.timestamp,
+                    state: OrderState.INITIATED
+                })
+            );
     }
 
     function initiateOrder (
@@ -98,13 +98,10 @@ contract Radenu is AccessControl, ReentrancyGuard {
         external nonReentrant
     {
         initOrder(_amount, _accountNumber, _accountName, _bankName, _country, _exchangeRate);
-        require(orderCreated[msg.sender].sender == address(0), "FORBIDDEN: Pending order");
-        require(_amount > 10, "Cannot send less than 10");
+        require(_amount >= 10, "Cannot send less than 10");
         _totalSupply += _amount;
-        _balances[msg.sender] += _amount;
         transferToken.safeTransferFrom(msg.sender, address(this), _amount);
         emit OrderInitiated(msg.sender, _amount, block.timestamp);
-
     }
 
     function acceptOrder(uint256 _orderId) external nonReentrant {
@@ -125,21 +122,24 @@ contract Radenu is AccessControl, ReentrancyGuard {
                          _openOrder[i].amount, 
                          block.timestamp
                          );
-                    //return _openOrder[i];
                 }
                  acceptedOrder[msg.sender].state = OrderState.COMPLETED;
         }
     }
 
-    function releasePayment() external nonReentrant {
-        uint256 amount = orderCreated[msg.sender].amount;
-        uint256 id = orderCreated[msg.sender].orderId;
+    function releasePayment(uint256 _orderId) external nonReentrant {
         Order[] memory _openOrder = openOrder;
         for (uint256 i = 0; i < _openOrder.length; i++){
-                if(_openOrder[i].orderId == id) {
+                if(_openOrder[i].orderId == _orderId) {
+                    require(
+                        _openOrder[i].sender == msg.sender &&
+                        _openOrder[i].state == OrderState.COMPLETED,
+                        "RADENU: FORBIDDEN"
+                        );
+                    uint256 amount = openOrder[i].amount;
                     openOrder[i].state = OrderState.FUFILLED;
                     delete acceptedOrder[_openOrder[i].receiver];
-                    delete orderCreated[msg.sender];
+                    _totalSupply -= amount;
                     transferToken.transfer(_openOrder[i].receiver, amount);
                     emit OrderFufilled(
                          _openOrder[i].sender, 
@@ -153,18 +153,18 @@ contract Radenu is AccessControl, ReentrancyGuard {
     }
 
     function cancelOrder(uint256 _orderId) external nonReentrant {
-        require(orderCreated[msg.sender].state == OrderState.INITIATED, "FORBIDDEN: Order Accepted");
-        uint256 amount = orderCreated[msg.sender].amount;
         Order[] memory _openOrder = openOrder;
         for (uint256 i = 0; i < _openOrder.length; i++){
                 if(_openOrder[i].orderId == _orderId) {
                     require(
-                        orderCreated[msg.sender].sender == _openOrder[i].sender,
-                        "FORBIDDEN: Not Created by you"
+                        _openOrder[i].sender == msg.sender &&
+                        _openOrder[i].state == OrderState.INITIATED,
+                        "RADENU: FORBIDDEN"
                     );
                     openOrder[i].state = OrderState.CANCELLED;
-                    delete orderCreated[msg.sender];
-                    transferToken.transfer(msg.sender, amount);
+                    uint256 amount = _openOrder[i].amount;
+                    uint256 total = amount + mintFee(amount);
+                    transferToken.transfer(msg.sender, total);
                     emit OrderCancelled(
                          msg.sender, 
                          amount, 
@@ -176,7 +176,20 @@ contract Radenu is AccessControl, ReentrancyGuard {
     }
 
     function creditUser(address user, uint256 _orderId) external nonReentrant onlyRole(MOD_ROLE){
-
+        Order[] memory _openOrder = openOrder;
+        for (uint256 i=0; i < _openOrder.length; i++){
+                if(_openOrder[i].orderId == _orderId) {
+                    uint256 amount = openOrder[i].amount;
+                    _totalSupply -= amount;
+                    transferToken.transfer(user, amount);
+                    emit OrderDisputed(
+                         _openOrder[i].sender, 
+                         _openOrder[i].receiver, 
+                         _openOrder[i].amount, 
+                         block.timestamp
+                         );
+                }
+        }
     }
 
     function openDispute(uint256 _orderId) external nonReentrant {
@@ -195,9 +208,12 @@ contract Radenu is AccessControl, ReentrancyGuard {
                          _openOrder[i].amount, 
                          block.timestamp
                          );
-
                 }
         }
+    }
+
+    function mintFee(uint256 amount) internal pure returns (uint256){
+        return (uint256(1) / uint256(500)) *  amount;
     }
 
     // ============ SUPPORTING FUNCTIONS ============
@@ -225,7 +241,6 @@ contract Radenu is AccessControl, ReentrancyGuard {
                         );
                     openOrder[i].receiver = payable(msg.sender);
                     openOrder[i].state = OrderState.ACCEPTED;
-                    orderCreated[openOrder[i].sender].state = OrderState.ACCEPTED;
                     openOrder[i].duration = uint128 (block.timestamp);
                     return _openOrder[i];
                 }
