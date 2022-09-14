@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 // Import this file to use console.log
 import "hardhat/console.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -11,34 +11,35 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract Radenu is AccessControl, ReentrancyGuard {
+
+/**
+ * @title Radenu
+ * @author Braln Ltd
+ *
+ * @notice This is the base contarcts that acts as an escrow which hold funds and processes payment
+ */
+contract Radenu is ReentrancyGuard, Ownable {
     using Counters for Counters.Counter;
     using Strings for uint256;
     using SafeERC20 for IERC20;
 
     Counters.Counter private orderId;
-
     IERC20 public transferToken;
-    IERC20 public rewardsToken;
 
     enum OrderState {INITIATED, ACCEPTED, COMPLETED, FUFILLED, CANCELLED, INDISPUTE}
-    
     
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
 
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant MOD_ROLE = keccak256("MOD_ROLE");
-
-        /* ========== CONSTRUCTOR ========== */
-
-    constructor(address _transferToken, address _rewardsToken) {
-        _grantRole(DEFAULT_ADMIN_ROLE, address(this));
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(ADMIN_ROLE, msg.sender);
+    /* ========== CONSTRUCTOR ========== */
+    /**
+     * @dev The constructor sets the stable coin implementation and the default roles.
+     *
+     * @param _transferToken The stable coin implementation address.
+     **/
+    constructor(address _transferToken) {
         transferToken = IERC20(_transferToken);
-        rewardsToken = IERC20(_rewardsToken);
-    }
+    }git 
 
     struct Order{
         uint256 amount;
@@ -55,11 +56,20 @@ contract Radenu is AccessControl, ReentrancyGuard {
         OrderState state;
     }
 
-    Order[] public openOrder;
+    Order[] public order;
     mapping (address => Order) public acceptedOrder;
    
-
-    function initOrder(
+     /**
+     * @dev Helper fucntion to create an order with minimum details.
+     *
+     * @param _amount The amount to send.
+     * @param _accountNumber The recipient local bank account number.
+     * @param _accountName The account name of the recipient  to send.
+     * @param _bankName The bank name of the recipient.
+     * @param _country The local country of the recieving party.
+     * @param _exchangeRate The coverting exchange rate.
+     **/
+    function _initOrder(
         uint256 _amount, 
         uint256 _accountNumber, 
         string memory _accountName, 
@@ -69,7 +79,7 @@ contract Radenu is AccessControl, ReentrancyGuard {
         
         {
             uint256 value = _amount - mintFee(_amount);
-            openOrder.push(
+            order.push(
                 Order({
                     amount: value,
                     accountNumber: _accountNumber,
@@ -87,7 +97,17 @@ contract Radenu is AccessControl, ReentrancyGuard {
             );
     }
 
-    function initiateOrder (
+    /**
+     * @notice Creates an order with the details of the amount to to be fufilled.
+     *
+     * @param _amount The amount to send.
+     * @param _accountNumber The recipient local bank account number.
+     * @param _accountName The account name of the recipient  to send.
+     * @param _bankName The bank name of the recipient.
+     * @param _country The local country of the recieving party.
+     * @param _exchangeRate The coverting exchange rate.
+     **/
+    function createOrder (
         uint256 _amount, 
         uint256 _accountNumber, 
         string memory _accountName, 
@@ -97,13 +117,19 @@ contract Radenu is AccessControl, ReentrancyGuard {
         ) 
         external nonReentrant
     {
-        initOrder(_amount, _accountNumber, _accountName, _bankName, _country, _exchangeRate);
+        _initOrder(_amount, _accountNumber, _accountName, _bankName, _country, _exchangeRate);
         require(_amount >= 10, "Cannot send less than 10");
+        require(transferToken.balanceOf(msg.sender) >= _amount, "RADENU: Insufficient amount");
         _totalSupply += _amount;
         transferToken.safeTransferFrom(msg.sender, address(this), _amount);
         emit OrderInitiated(msg.sender, _amount, block.timestamp);
     }
 
+     /**
+     * @notice Accepts an order.
+     *
+     * @param _orderId The id of the order being accepted.
+     **/
     function acceptOrder(uint256 _orderId) external nonReentrant {
         require(acceptedOrder[msg.sender].receiver == address(0), "FORBIDEN: Pending order");
         Order memory _acceptedOrder = findAndProcessOrder(_orderId);
@@ -111,11 +137,16 @@ contract Radenu is AccessControl, ReentrancyGuard {
         emit OrderAccepted(_acceptedOrder.sender, msg.sender, _acceptedOrder.amount, block.timestamp);
     }
 
+    /**
+     * @notice Marks an order as completed when called.
+     *
+     * @param _orderId The id of the orderId to be marked as completed.
+     **/
     function completeOrder(uint256 _orderId) external nonReentrant {
-        Order[] memory _openOrder = openOrder;
+        Order[] memory _openOrder = order;
         for (uint256 i = 0; i < _openOrder.length; i++){
                 if(_openOrder[i].orderId == _orderId) {
-                    openOrder[i].state = OrderState.COMPLETED;
+                    order[i].state = OrderState.COMPLETED;
                      emit OrderCompleted(
                          _openOrder[i].sender, 
                          msg.sender, 
@@ -127,8 +158,13 @@ contract Radenu is AccessControl, ReentrancyGuard {
         }
     }
 
+    /**
+     * @notice Relesase payment to the party who pays the local currecny 
+     *
+     * @param _orderId The id of the orderId of the completed order.
+     **/
     function releasePayment(uint256 _orderId) external nonReentrant {
-        Order[] memory _openOrder = openOrder;
+        Order[] memory _openOrder = order;
         for (uint256 i = 0; i < _openOrder.length; i++){
                 if(_openOrder[i].orderId == _orderId) {
                     require(
@@ -136,8 +172,8 @@ contract Radenu is AccessControl, ReentrancyGuard {
                         _openOrder[i].state == OrderState.COMPLETED,
                         "RADENU: FORBIDDEN"
                         );
-                    uint256 amount = openOrder[i].amount;
-                    openOrder[i].state = OrderState.FUFILLED;
+                    uint256 amount = order[i].amount;
+                    order[i].state = OrderState.FUFILLED;
                     delete acceptedOrder[_openOrder[i].receiver];
                     _totalSupply -= amount;
                     transferToken.transfer(_openOrder[i].receiver, amount);
@@ -152,8 +188,13 @@ contract Radenu is AccessControl, ReentrancyGuard {
 
     }
 
+     /**
+     * @notice Cancels an order when is has not been accepted to be proccessed 
+     *
+     * @param _orderId The id of the order to be cancelled.
+     **/
     function cancelOrder(uint256 _orderId) external nonReentrant {
-        Order[] memory _openOrder = openOrder;
+        Order[] memory _openOrder = order;
         for (uint256 i = 0; i < _openOrder.length; i++){
                 if(_openOrder[i].orderId == _orderId) {
                     require(
@@ -161,7 +202,7 @@ contract Radenu is AccessControl, ReentrancyGuard {
                         _openOrder[i].state == OrderState.INITIATED,
                         "RADENU: FORBIDDEN"
                     );
-                    openOrder[i].state = OrderState.CANCELLED;
+                    order[i].state = OrderState.CANCELLED;
                     uint256 amount = _openOrder[i].amount;
                     uint256 total = amount + mintFee(amount);
                     transferToken.transfer(msg.sender, total);
@@ -175,11 +216,42 @@ contract Radenu is AccessControl, ReentrancyGuard {
 
     }
 
-    function creditUser(address user, uint256 _orderId) external nonReentrant onlyRole(MOD_ROLE){
-        Order[] memory _openOrder = openOrder;
+    /**
+     * @notice Used to raise dispute to be mediated by an admin
+     *
+     * @param _orderId The id of the order in dispute.
+     **/
+    function openDispute(uint256 _orderId) external nonReentrant {
+        Order[] memory _openOrder = order;
         for (uint256 i=0; i < _openOrder.length; i++){
                 if(_openOrder[i].orderId == _orderId) {
-                    uint256 amount = openOrder[i].amount;
+                    require(
+                        order[i].receiver == msg.sender || 
+                        order[i].sender == msg.sender, 
+                        "RADENU: FORBIDDEN"
+                        );
+                    order[i].state = OrderState.INDISPUTE;
+                    emit OrderDisputed(
+                         _openOrder[i].sender, 
+                         _openOrder[i].receiver, 
+                         _openOrder[i].amount, 
+                         block.timestamp
+                         );
+                }
+        }
+    }
+
+     /**
+     * @notice Used for dispute resolution to credit users after a resolution has been reached 
+     *
+     * @param user The address of the user to be credited.
+     * @param _orderId The id of the order in dispute.
+     **/
+    function creditUser(address user, uint256 _orderId) external nonReentrant onlyOwner{
+        Order[] memory _openOrder = order;
+        for (uint256 i=0; i < _openOrder.length; i++){
+                if(_openOrder[i].orderId == _orderId) {
+                    uint256 amount = order[i].amount;
                     _totalSupply -= amount;
                     transferToken.transfer(user, amount);
                     emit OrderDisputed(
@@ -192,26 +264,18 @@ contract Radenu is AccessControl, ReentrancyGuard {
         }
     }
 
-    function openDispute(uint256 _orderId) external nonReentrant {
-        Order[] memory _openOrder = openOrder;
-        for (uint256 i=0; i < _openOrder.length; i++){
-                if(_openOrder[i].orderId == _orderId) {
-                    require(
-                        openOrder[i].receiver == msg.sender || 
-                        openOrder[i].sender == msg.sender, 
-                        "RADENU: FORBIDDEN"
-                        );
-                    openOrder[i].state = OrderState.INDISPUTE;
-                    emit OrderDisputed(
-                         _openOrder[i].sender, 
-                         _openOrder[i].receiver, 
-                         _openOrder[i].amount, 
-                         block.timestamp
-                         );
-                }
-        }
+    /**
+    * @notice Returns the total order in the smart country
+    * @return Order[] The identifier of the pool
+    **/
+    function getTotalOrder() external view returns (Order[] memory){
+        return order; 
     }
 
+    /**
+    * @notice Calculates the protocol fee for each transaction 
+    * @param amount The fee is calaculated from the amount
+    **/
     function mintFee(uint256 amount) internal pure returns (uint256){
         return (uint256(1) / uint256(500)) *  amount;
     }
@@ -220,44 +284,39 @@ contract Radenu is AccessControl, ReentrancyGuard {
 
     function nextOrderId() private returns (uint256) {
         orderId.increment();
-        return orderId.current();
+        return orderId.current(); 
     }
 
     function orderTotal() external view returns (uint256) {
         return orderId.current();
     }
 
-    function assignRole (address user) external onlyRole(ADMIN_ROLE){
-        _setupRole(MOD_ROLE, user);
-    }
-
     function findAndProcessOrder(uint256 id) internal returns (Order memory){
-        Order[] memory _openOrder = openOrder;
+        Order[] memory _openOrder = order;
         for (uint256 i=0; i < _openOrder.length; i++){
                 if(_openOrder[i].orderId == id) {
                     require(
-                        openOrder[i].receiver == address(0), 
+                        order[i].receiver == address(0), 
                         "FORBIDDEN: Order Accepted by Someone Else"
                         );
-                    openOrder[i].receiver = payable(msg.sender);
-                    openOrder[i].state = OrderState.ACCEPTED;
-                    openOrder[i].duration = uint128 (block.timestamp);
+                    order[i].receiver = payable(msg.sender);
+                    order[i].state = OrderState.ACCEPTED;
+                    order[i].duration = uint128 (block.timestamp);
                     return _openOrder[i];
                 }
         }
         revert('Not found');
     }
 
-       // ============ OWNER-ONLY ADMIN FUNCTIONS ============
+    // ============ OWNER-ONLY ADMIN FUNCTIONS ============
 
-    function withdraw() public onlyRole(ADMIN_ROLE) {
+    function withdraw() public onlyOwner  {
         uint256 balance = address(this).balance;
         payable(msg.sender).transfer(balance);
     }
 
     function withdrawTokens(IERC20 token) 
-    public 
-    onlyRole(ADMIN_ROLE) 
+    public onlyOwner
     {
         uint256 balance = token.balanceOf(address(this));
         token.transfer(msg.sender, balance);
@@ -272,5 +331,4 @@ contract Radenu is AccessControl, ReentrancyGuard {
     event OrderDisputed(address indexed sender, address indexed reciever, uint256 amount, uint256 when);
     event UserCredited(address indexed sender, uint256 amount, uint256 when);
    
-
 }

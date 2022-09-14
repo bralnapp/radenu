@@ -14,12 +14,12 @@ async function main() {
   const lockedAmount = hre.ethers.utils.parseEther("1");
 
   const Radenu = await hre.ethers.getContractFactory("Radenu");
-  //const radenu = await Radenu.deploy(unlockTime, { value: lockedAmount });
+  const radenu = await Radenu.deploy("0x55d37DB5Ce7b2bE7f05DA00fF30A9e1c8f5D8437");
 
-  await lock.deployed();
+  await radenu.deployed();
 
   console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
+    `Successfully deployed to ${radenu.address}`
   );
 }
 

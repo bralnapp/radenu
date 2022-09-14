@@ -1,9 +1,14 @@
 {
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",
+    "@nomiclabs/hardhat-ethers": "^2.0.5",
+    "@nomiclabs/hardhat-etherscan": "^3.0.3",
     "hardhat": "^2.10.2"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.7.3"
+    "@openzeppelin/contracts": "^4.7.3",
+    "dotenv": "^16.0.2",
+    "hardhat-gas-reporter": "^1.0.8",
+    "solidity-docgen": "^0.6.0-beta.25"
   }
 }
