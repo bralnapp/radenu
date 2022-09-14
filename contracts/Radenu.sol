@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-// Import this file to use console.log
-import "hardhat/console.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -16,7 +14,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
  * @title Radenu
  * @author Braln Ltd
  *
- * @notice This is the base contarcts that acts as an escrow which hold funds and processes payment
+ * @notice This is the base contract that acts as P2P escrow that hold funds and processes payment
  */
 contract Radenu is ReentrancyGuard, Ownable {
     using Counters for Counters.Counter;
