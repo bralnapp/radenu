@@ -34,12 +34,10 @@ The platform generates fees from a 0.2% charge on the total amount to be sent, w
 The Settler makes a profit from the differences in the exchange rate that is fixed or agreed upon by the platform.
 Transaction points (XP) are introduced on the platform to help incentivize user behavior and bootstrap network effects. These points (XP) may be used to incentivize early users in various 
 
-Try running some of the following tasks:
+Run:
 
 ```shell
-npx hardhat help
 npx hardhat test
-GAS_REPORT=true npx hardhat test
 npx hardhat node
 npx hardhat run scripts/deploy.js
 ```
