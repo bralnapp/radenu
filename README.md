@@ -1,8 +1,5 @@
-# Radenu
-
+## Radenu
 ---
-
-## The Well app is available for download! 🥳 🚀
 
 Radenu is a decentralized, non-custodial P2P remittance payment protocol. Radenu implements a unique, on-chain escrow P2P payment solution analogous to commonly understood P2P applications like Binance, but transactions are completely pseudonymous. 
 Web: Visit [https://well-app.netlify.app](https://well-app.netlify.app). 
