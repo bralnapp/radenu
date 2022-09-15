@@ -21,6 +21,8 @@ The Settler: This is the user that actually deposits the fiat currency to the re
 
 The Receiver: This is the recipient of the fiat payment and they do not need to be on the platform, however, they can communicate with the Sender offline to acknowledge receipt of funds to their local bank account.
 
+![My Image](my-image.jpg)
+
 
 Try running some of the following tasks:
 
