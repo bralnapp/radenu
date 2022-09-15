@@ -1,10 +1,8 @@
 # Radenu
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+Radenu is a decentralized, non-custodial P2P remmitance payment application. Radenu implements unique, on-chain escrow P2P payment solution analogous to commonly understood P2P applications like Binance. 
 
 Try running some of the following tasks:
-
-Radenu is a decentralized, non-custodial P2P remmitance payment application. Radenu implements unique, on-chain escrow P2P payment solution analogous to commonly understood P2P applications like Binance. 
 
 ```shell
 npx hardhat help
