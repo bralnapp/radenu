@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
  * @title Radenu
  * @author Braln Ltd
  *
- * @notice This is the base contract that acts as P2P escrow that hold funds and processes payment
+ * @notice This is the base contract that acts as P2P escrow which holds and process payment
  */
 contract Radenu is ReentrancyGuard, Ownable {
     using Counters for Counters.Counter;
@@ -64,8 +64,8 @@ contract Radenu is ReentrancyGuard, Ownable {
      * @param _accountNumber The recipient local bank account number.
      * @param _accountName The account name of the recipient  to send.
      * @param _bankName The bank name of the recipient.
-     * @param _country The local country of the recieving party.
-     * @param _exchangeRate The coverting exchange rate.
+     * @param _country The local country of the recipient.
+     * @param _exchangeRate The converting exchange rate.
      **/
     function _initOrder(
         uint256 _amount, 
@@ -102,8 +102,8 @@ contract Radenu is ReentrancyGuard, Ownable {
      * @param _accountNumber The recipient local bank account number.
      * @param _accountName The account name of the recipient  to send.
      * @param _bankName The bank name of the recipient.
-     * @param _country The local country of the recieving party.
-     * @param _exchangeRate The coverting exchange rate.
+     * @param _country The local country of the recipient.
+     * @param _exchangeRate The converting exchange rate.
      **/
     function createOrder (
         uint256 _amount, 
@@ -144,6 +144,7 @@ contract Radenu is ReentrancyGuard, Ownable {
         Order[] memory _openOrder = order;
         for (uint256 i = 0; i < _openOrder.length; i++){
                 if(_openOrder[i].orderId == _orderId) {
+                    require(_openOrder[i].receiver == address(msg.sender), "RADENU:FORBIDDEN");
                     order[i].state = OrderState.COMPLETED;
                      emit OrderCompleted(
                          _openOrder[i].sender, 
