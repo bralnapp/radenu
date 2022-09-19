@@ -33,11 +33,35 @@ Once the Settler has fulfilled the payment in the local fiat currency, they can 
 The platform generates fees from a 0.2% charge on the total amount to be sent, which serves as revenue to the protocol and is stored in the vault.
 The Settler makes a profit from the differences in the exchange rate that is fixed or agreed upon by the platform.
 Transaction points (XP) are introduced on the platform to help incentivize user behavior and bootstrap network effects. These points (XP) may be used to incentivize early users in various 
+### Install
+```bash
+git clone https://github.com/bralnapp/radenu-protocol.git
+cd peer-to-peer
+<!-- Copy .env.example to a new .env.local file on peer-to-peer root folder -->
+yarn install
 
-Run:
-
-```shell
-npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.js
+#Get your development server running.
+yarn start
 ```
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome!
+
+Feel free to check the [issues page](../../issues/).
+
+## Show your support
+
+Give a ⭐ if you like this project!
+
+
+[contributors-shield]: https://img.shields.io/github/contributors/bralnapp/radenu-protocol?style=for-the-badge
+[contributors-url]: https://github.com/bralnapp/radenu-protocol/graphs/contributors
+[issues-shield]: https://img.shields.io/github/issues/bralnapp/radenu-protocol?style=for-the-badge
+[issues-url]: https://github.com/bralnapp/peer-to-peer/issues
+[forks-shield]: https://img.shields.io/github/forks/bralnapp/radenu-protocol?style=for-the-badge
+[forks-url]: https://github.com/bralnapp/radenu-protocol/network
+[star-shield]: https://img.shields.io/github/stars/bralnapp/radenu-protocol?style=for-the-badge
+[star-url]: https://github.com/bralnapp/radenu-protocol/stargazers
+[license-shield]: https://img.shields.io/github/license/bralnapp/radenu-protocol?style=for-the-badge
+[license-url]: https://github.com/bralnapp/radenu-protocol/blob/main/LICENSE.md
